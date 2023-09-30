@@ -8,9 +8,9 @@ namespace Popoupa.Core
 {
     public class InvalidBankStatementException : Exception
     {
-        public InvalidBankStatementException(int line, string message)
+        public InvalidBankStatementException(int CsvLineReference, string message) : base(message)
         {
-            Line = line;
+            Line = CsvLineReference;
             Message = message;
         }
 
@@ -18,3 +18,4 @@ namespace Popoupa.Core
         public string Message { get; }
     }
 }
+

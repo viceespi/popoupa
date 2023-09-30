@@ -16,147 +16,133 @@ namespace Popoupa.Core
         {
             var expensesArray = new List<Expense>();
             var fileString = fileEncoding.GetString(fileContents);
-            var csvLines = GetLines(fileString);
-            var index = 0;
-            foreach (string line in csvLines)
+            var hasHeader = HasHeader(fileString);
+            var csvLines = fileString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            for (int lineIndex = 1; lineIndex < csvLines.Length; lineIndex++)
             {
-                if (line != csvLines[0])
+                var CsvLineReference = lineIndex + 1;
+                var individualLine = GetIndividualCSVLines(csvLines, lineIndex, CsvLineReference);
+                var lineContents = individualLine.Split(',', '\r', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                CheckIfLineIsValid(lineContents, CsvLineReference);
+                var expenseAmount = GetExpenseAmount(lineContents,CsvLineReference);
+                if (expenseAmount < 0)
                 {
-                    var separatedLine = GetColumns(line);
-                    Decimal expenseAmount;
-                    var isExpense = GetExpenseAmount(separatedLine, index, out expenseAmount);
-                    if (isExpense)
-                    {
-                        var expenseDate = GetExpenseDate(separatedLine, index);
-                        var expenseDescription = GetExpenseDescription(separatedLine, index);
-                        var expense = new Expense(expenseDescription, expenseDate, expenseAmount);
-                        expensesArray.Add(expense);
-                        index += 1;
-                    }
-                    else
-                    {
-                        index += 1;
-                    }
-                    
+                    var expenseDate = GetExpenseDate(lineContents, CsvLineReference);
+                    var expenseDescription = GetExpenseDescription(lineContents, CsvLineReference);
+                    var expense = new Expense(expenseDescription, expenseDate, expenseAmount);
+                    expensesArray.Add(expense);
                 }
             }
             return expensesArray;
-
         }
 
-        public List<string> GetLines(string filestring)
+        private bool HasHeader(string filestring)
         {
-            StringBuilder line = new StringBuilder();
-            List<string> lines = new List<string>();
-            int index = 0;
-          
-            while (index != filestring.Length)
-            {
-                char character = filestring[index];
-                if (character != '\n')
-                {
-                    line.Append(character);
-                    index += 1;
-                }
-                else
-                {
-                    lines.Add(line.ToString());
-                    index += 1;
-                    line.Clear();
-                }
-                
-            }
-            return lines;
-        }
-
-        public List<string> GetColumns(string line)
-        {
-            StringBuilder column = new StringBuilder();
-            List<string> separatedline = new List<string>();
-            int index = 0;
-            
-            while (index != line.Length)
-            {
-                char character = line[index];
-                if (character == ',' || character == '\r')
-                {
-                    separatedline.Add(column.ToString());
-                    index += 1;
-                    column.Clear();
-                    
-                }
-                else
-                {
-                    column.Append(character);
-                    index += 1;
-                }
-            }
-            return separatedline;
-        }
-
-        public DateTime GetExpenseDate(List<string> lineContents, int lineIndex)
-        {
-            CultureInfo brazilian = new CultureInfo("pt-BR");
-            var dateAsString = lineContents[0];
-            var line = lineIndex + 1;
+            var header = "Data,Valor,Identificador,Descrição\r\n";
             try
             {
-                var date = DateTime.ParseExact(dateAsString, "dd/MM/yyyy", brazilian);
-                return date;
+                var toValidateHeader = filestring.Substring(0, 36);
+                var hasHeader = header == toValidateHeader;
+                if (!hasHeader)
+                {
+                    throw new InvalidBankStatementException(1, "Invalid file, it has no header");
+                }
+                return hasHeader;
             }
-            catch(ArgumentNullException)
+            catch (ArgumentOutOfRangeException)
             {
-                throw new InvalidBankStatementException(line, "No date present in the line");
-            }
-            catch(FormatException)
-            {
-                throw new InvalidBankStatementException(line, "Invalid format of the date");
+                throw new InvalidBankStatementException(1, "Invalid length indicated in the substring method. To validate string length < indicated length");
             }
         }
 
-        public bool GetExpenseAmount(List<string> lineContents, int lineIdex, out decimal Amount)
+        private string GetIndividualCSVLines(string[] csvLines, int lineIndex, int CsvLineReference)
         {
-            var amountAsString = lineContents[1];
-            var line = lineIdex + 1;
-            if (amountAsString[0] == '-')
+            try
             {
+                var lineContents = csvLines[lineIndex];
+                return lineContents;
+            }
+            catch(ArgumentOutOfRangeException)
+            {
+                throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds"); 
+            }
+        }
+
+        private void CheckIfLineIsValid(string[] lineContents, int CsvLineReference)
+        {
+            if (lineContents.Length != 4)
+            {
+                throw new InvalidBankStatementException(CsvLineReference, "The line is invalid. Only lines whit 4 informations are accepted");
+            }
+        }
+
+        private DateTime GetExpenseDate(string[] lineContents, int CsvLineReference)
+        {
+            CultureInfo brazilian = new CultureInfo("pt-BR");
+            try
+            {
+                var dateAsString = lineContents[0];
+                try
+                {
+                    var date = DateTime.ParseExact(dateAsString, "dd/MM/yyyy", brazilian);
+                    return date;
+                }
+                catch (ArgumentNullException)
+                {
+                    throw new InvalidBankStatementException(CsvLineReference, "The date or the format of the date have the null value");
+                }
+                catch (FormatException)
+                {
+                    throw new InvalidBankStatementException(CsvLineReference, "Invalid format of the date");
+                }
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds");
+            }
+        }
+
+        private decimal GetExpenseAmount(string[] lineContents, int CsvLineReference)
+        {
+            try
+            {
+                var amountAsString = lineContents[1];
                 try
                 {
                     var expenseAmount = decimal.Parse(amountAsString);
-                    Amount = expenseAmount;
-                    return true;
+                    return expenseAmount;
                 }
-                catch(ArgumentNullException)
+                catch (ArgumentNullException)
                 {
-                    throw new InvalidBankStatementException(line, "No value of the expense present in the line");
+                    throw new InvalidBankStatementException(CsvLineReference, "The amount indicated in the file is null");
                 }
-                catch(FormatException)
+                catch (FormatException)
                 {
-                    throw new InvalidBankStatementException(line, "Invalid format of the value of the expense");
+                    throw new InvalidBankStatementException(CsvLineReference, "Invalid format of the value of the expense");
                 }
                 catch (OverflowException)
                 {
-                    throw new InvalidBankStatementException(line, "Invalid value of the expense");
+                    throw new InvalidBankStatementException(CsvLineReference, "Value of the expense is invalid, may be lesser than the supported min for decimals or greater than the supported max");
                 }
-
             }
-            else
+            catch(ArgumentOutOfRangeException) 
             {
-                Amount = 0;
-                return false;
+                throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds");
             }
-            
         }
 
-        public string GetExpenseDescription(List<string> lineContents, int lineIdex)
+        private string GetExpenseDescription(string[] lineContents, int CsvLineReference)
         {
-            var expenseDescription = lineContents[3];
-            var line = lineIdex + 1;
-            if (string.IsNullOrEmpty(expenseDescription))
+            try
             {
-                throw new InvalidBankStatementException(line, "Invalid file, expense has no description");
+                var expenseDescription = lineContents[3];
+                return expenseDescription;
             }
-            return expenseDescription;
+            catch (ArgumentOutOfRangeException)
+            {
+                throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds");
+            }
+            
         }
 
     }
