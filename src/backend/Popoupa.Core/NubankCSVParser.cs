@@ -12,11 +12,12 @@ namespace Popoupa.Core
 {
     public class NubankCSVParser
     {
+        private static readonly CultureInfo Brazilian = new CultureInfo("pt-BR");
         public List<Expense> Parse(byte[] fileContents, Encoding fileEncoding)
         {
             var expensesArray = new List<Expense>();
             var fileString = fileEncoding.GetString(fileContents);
-            var hasHeader = HasHeader(fileString);
+            CheckIfFileHasHeader(fileString);
             var csvLines = fileString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             for (int lineIndex = 1; lineIndex < csvLines.Length; lineIndex++)
             {
@@ -25,20 +26,18 @@ namespace Popoupa.Core
                 var lineContents = individualLine.Split(',', '\r', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                 CheckIfLineIsValid(lineContents, CsvLineReference);
                 var expenseAmount = GetExpenseAmount(lineContents,CsvLineReference);
-                if (expenseAmount < 0)
-                {
-                    var expenseDate = GetExpenseDate(lineContents, CsvLineReference);
-                    var expenseDescription = GetExpenseDescription(lineContents, CsvLineReference);
-                    var expense = new Expense(expenseDescription, expenseDate, expenseAmount);
-                    expensesArray.Add(expense);
-                }
+                if (expenseAmount >= 0) continue;
+                var expenseDate = GetExpenseDate(lineContents, CsvLineReference);
+                var expenseDescription = GetExpenseDescription(lineContents, CsvLineReference);
+                var expense = new Expense(expenseDescription, expenseDate, expenseAmount);
+                expensesArray.Add(expense);
             }
             return expensesArray;
         }
 
-        private bool HasHeader(string filestring)
+        private void CheckIfFileHasHeader(string filestring)
         {
-            var header = "Data,Valor,Identificador,Descrição\r\n";
+            const string header = "Data,Valor,Identificador,Descrição\r\n";
             try
             {
                 var toValidateHeader = filestring.Substring(0, 36);
@@ -47,7 +46,6 @@ namespace Popoupa.Core
                 {
                     throw new InvalidBankStatementException(1, "Invalid file, it has no header");
                 }
-                return hasHeader;
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -78,13 +76,12 @@ namespace Popoupa.Core
 
         private DateTime GetExpenseDate(string[] lineContents, int CsvLineReference)
         {
-            CultureInfo brazilian = new CultureInfo("pt-BR");
             try
             {
                 var dateAsString = lineContents[0];
                 try
                 {
-                    var date = DateTime.ParseExact(dateAsString, "dd/MM/yyyy", brazilian);
+                    var date = DateTime.ParseExact(dateAsString, "dd/MM/yyyy", Brazilian);
                     return date;
                 }
                 catch (ArgumentNullException)
