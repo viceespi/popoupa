@@ -6,16 +6,32 @@ using System.Threading.Tasks;
 
 namespace Popoupa.Core
 {
-    public class Expense
+    
+    public record Expense
     {
-        public Expense(string description, DateTime date, decimal amount)
+        public enum CategoryState
+        {
+            Uncategorized,
+            Housing,
+            Pets,
+            MarketEssentials,
+            DrugstoreExpenses,
+            MentalHealth,
+            PyshicalHealth,
+            HappyHours,
+            UnusualExpenses,
+        }
+
+        public Expense(string description, DateTime date, decimal amount, CategoryState category)
         {
             Description = description;
             Date = date;
             Amount = amount;
+            Category = category;
         }
         public string Description { get; }
         public DateTime Date { get; }
         public decimal Amount { get; }
+        public CategoryState Category { get; set; }
     }
 }

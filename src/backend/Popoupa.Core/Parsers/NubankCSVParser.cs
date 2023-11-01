@@ -5,15 +5,14 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection.PortableExecutable;
 using System.Text;
-
 using System.Threading.Tasks;
 
-namespace Popoupa.Core
+namespace Popoupa.Core.Parsers
 {
-    public class NubankCSVParser
+    public class NubankCSVParser : IParser
     {
         private static readonly CultureInfo Brazilian = new CultureInfo("pt-BR");
-        public List<Expense> Parse(byte[] fileContents, Encoding fileEncoding)
+        public  List<Expense> Parse(byte[] fileContents, Encoding fileEncoding)
         {
             var expensesArray = new List<Expense>();
             var fileString = fileEncoding.GetString(fileContents);
@@ -21,21 +20,21 @@ namespace Popoupa.Core
             var csvLines = fileString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             for (int lineIndex = 1; lineIndex < csvLines.Length; lineIndex++)
             {
-                var CsvLineReference = lineIndex + 1;
-                var individualLine = GetIndividualCSVLines(csvLines, lineIndex, CsvLineReference);
+                var csvLineReference = lineIndex + 1;
+                var individualLine = GetIndividualCSVLines(csvLines, lineIndex, csvLineReference);
                 var lineContents = individualLine.Split(',', '\r', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-                CheckIfLineIsValid(lineContents, CsvLineReference);
-                var expenseAmount = GetExpenseAmount(lineContents,CsvLineReference);
+                CheckIfLineIsValid(lineContents, csvLineReference);
+                var expenseAmount = GetExpenseAmount(lineContents, csvLineReference);
                 if (expenseAmount >= 0) continue;
-                var expenseDate = GetExpenseDate(lineContents, CsvLineReference);
-                var expenseDescription = GetExpenseDescription(lineContents, CsvLineReference);
-                var expense = new Expense(expenseDescription, expenseDate, expenseAmount);
+                var expenseDate = GetExpenseDate(lineContents, csvLineReference);
+                var expenseDescription = GetExpenseDescription(lineContents, csvLineReference);
+                var expense = new Expense(expenseDescription, expenseDate, expenseAmount, Expense.CategoryState.Uncategorized);
                 expensesArray.Add(expense);
             }
             return expensesArray;
         }
 
-        private void CheckIfFileHasHeader(string filestring)
+        private static void CheckIfFileHasHeader(string filestring)
         {
             const string header = "Data,Valor,Identificador,Descrição\r\n";
             try
@@ -53,20 +52,20 @@ namespace Popoupa.Core
             }
         }
 
-        private string GetIndividualCSVLines(string[] csvLines, int lineIndex, int CsvLineReference)
+        private static string GetIndividualCSVLines(string[] csvLines, int lineIndex, int CsvLineReference)
         {
             try
             {
                 var lineContents = csvLines[lineIndex];
                 return lineContents;
             }
-            catch(ArgumentOutOfRangeException)
+            catch (ArgumentOutOfRangeException)
             {
-                throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds"); 
+                throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds");
             }
         }
 
-        private void CheckIfLineIsValid(string[] lineContents, int CsvLineReference)
+        private static void CheckIfLineIsValid(string[] lineContents, int CsvLineReference)
         {
             if (lineContents.Length != 4)
             {
@@ -74,7 +73,7 @@ namespace Popoupa.Core
             }
         }
 
-        private DateTime GetExpenseDate(string[] lineContents, int CsvLineReference)
+        private static DateTime GetExpenseDate(string[] lineContents, int CsvLineReference)
         {
             try
             {
@@ -99,7 +98,7 @@ namespace Popoupa.Core
             }
         }
 
-        private decimal GetExpenseAmount(string[] lineContents, int CsvLineReference)
+        private static decimal GetExpenseAmount(string[] lineContents, int CsvLineReference)
         {
             try
             {
@@ -122,13 +121,13 @@ namespace Popoupa.Core
                     throw new InvalidBankStatementException(CsvLineReference, "Value of the expense is invalid, may be lesser than the supported min for decimals or greater than the supported max");
                 }
             }
-            catch(ArgumentOutOfRangeException) 
+            catch (ArgumentOutOfRangeException)
             {
                 throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds");
             }
         }
 
-        private string GetExpenseDescription(string[] lineContents, int CsvLineReference)
+        private static string GetExpenseDescription(string[] lineContents, int CsvLineReference)
         {
             try
             {
@@ -139,7 +138,7 @@ namespace Popoupa.Core
             {
                 throw new InvalidBankStatementException(CsvLineReference, "Index out of bounds");
             }
-            
+
         }
 
     }
