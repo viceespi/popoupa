@@ -41,7 +41,7 @@ namespace Popoupa.Core.CategorizerStuff
         public List<CategoryState> GetListOfCategories(List<Expense> expensesArchive, Expense chosenExpense)
         {
             PopoTable<CategoryState> popoTable = new(expensesArchive, expense => expense.Category);
-            List<PopoPair<CategoryState>>? bucket = popoTable.Get(chosenExpense.Description) ?? new List<PopoPair<CategoryState>>();
+            List<PopoPair<CategoryState>> bucket = popoTable.Get(chosenExpense.Description) ?? new List<PopoPair<CategoryState>>();
             foreach (PopoPair<CategoryState> popoPair in bucket)
             {
                 if (popoPair.KeyDescription == chosenExpense.Description) return popoPair.KeyValue;
