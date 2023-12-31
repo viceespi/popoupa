@@ -8,6 +8,6 @@ namespace Popoupa.Core.Parsers
 {
     public interface IParser
     {
-        public List<Expense> Parse(byte[] fileContents, Encoding fileEncoding);
+        public BankStatement Parse(byte[] fileContents, Encoding fileEncoding, string bankName);
     }
 }

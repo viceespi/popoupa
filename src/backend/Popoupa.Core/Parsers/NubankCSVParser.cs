@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Popoupa.Core.DataBaseManipulation;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Globalization;
@@ -12,9 +13,11 @@ namespace Popoupa.Core.Parsers
     public class NubankCSVParser : IParser
     {
         private static readonly CultureInfo Brazilian = new CultureInfo("pt-BR");
-        public  List<Expense> Parse(byte[] fileContents, Encoding fileEncoding)
+
+        public  BankStatement Parse(byte[] fileContents, Encoding fileEncoding, string bankName)
         {
-            var expensesArray = new List<Expense>();
+            var monthOfReference = 0;
+            var expensesList = new List<Expense>();
             var fileString = fileEncoding.GetString(fileContents);
             CheckIfFileHasHeader(fileString);
             var csvLines = fileString.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -29,9 +32,14 @@ namespace Popoupa.Core.Parsers
                 var expenseDate = GetExpenseDate(lineContents, csvLineReference);
                 var expenseDescription = GetExpenseDescription(lineContents, csvLineReference);
                 var expense = new Expense(expenseDescription, expenseDate, expenseAmount, Expense.CategoryState.Uncategorized);
-                expensesArray.Add(expense);
+                expensesList.Add(expense);
+                monthOfReference = expense.Date.Month;
             }
-            return expensesArray;
+            var bankStatementRepository = new BankStatementRepository();
+            var bankStatement = new BankStatement(expensesList, monthOfReference, bankName);
+            var bankStatementId = bankStatementRepository.Add(bankStatement);
+            var bankStatementWhitId = new BankStatement(bankStatement.Expenses.ToList(), bankStatement.MonthOfReference, bankName, bankStatementId) ;
+            return bankStatementWhitId;
         }
 
         private static void CheckIfFileHasHeader(string filestring)
@@ -81,7 +89,8 @@ namespace Popoupa.Core.Parsers
                 try
                 {
                     var date = DateTime.ParseExact(dateAsString, "dd/MM/yyyy", Brazilian);
-                    return date;
+                    if (date <= DateTime.UtcNow) return date;
+                    throw new InvalidBankStatementException(CsvLineReference, "The date is invalid");
                 }
                 catch (ArgumentNullException)
                 {
